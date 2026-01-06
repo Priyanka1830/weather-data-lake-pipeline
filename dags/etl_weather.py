@@ -22,7 +22,7 @@ S3_FILE_PATH = f"weather_data/weather_{current_time}.parquet"
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def extract_weather_data():
+def extract_weather_data(**kwargs):
     # get the weather data from openweathermap api
     url = f"https://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}"
     try:
@@ -30,43 +30,54 @@ def extract_weather_data():
         response.raise_for_status()
         data = response.json()
         logging.info("Data extraction successful.")
+        # push the data to Xcom
         return data
+
     except requests.exceptions.RequestException as e:
         logging.error(f"Error extracting data: {e}")
         raise
 
-def validate_data(data):
-    # perform data validations
-    if not data:
-        raise ValueError("No data received from API.")
+def transform_weather_data(**kwargs):
 
-    if 'main' not in data or 'temp' not in data['main']:
+    # pull data from the previous task
+    task_instance = kwargs['ti']
+    raw_data = task_instance.xcom_pull(task_ids='extract_task')
+
+    if not raw_data:
+        raise ValueError("No data received from extract_task")
+
+    # validation logic
+    if 'main' not in raw_data or 'temp' not in raw_data['main']:
         raise ValueError("Missing critical field: 'temp'")
     
-    humidity = data['main'].get('humidity')
+    humidity = raw_data['main'].get('humidity')
     if not (0 <= humidity <= 100):
-        raise ValueError(f"Data Quality Failure: Humidity {humidity}% is out of range (0-100).")
+        raise ValueError(f"Data Quality Failure: Humidity {humidity}% is out of range.")
 
-    logging.info("Data validation passed.")
-    return True
-
-def transform_data(raw_data):
     # add metadata and temperature conversion
-    weather_entry = {
+    transformed_data = {
         "city": raw_data["name"],
-        "temperature_celsius": round(raw_data["main"]["temp"] - 273.15, 2), # Kelvin to Celsius
+        "temperature_celsius": round(raw_data["main"]["temp"] - 273.15, 2),
         "humidity": raw_data["main"]["humidity"],
         "weather_condition": raw_data["weather"][0]["description"],
-        "ingestion_timestamp": datetime.now()
+        "ingestion_timestamp": datetime.now().isoformat() 
     }
     
-    df = pd.DataFrame([weather_entry])
-    logging.info("Data transformation complete.")
-    return df
+    logging.info(f"Data transformation complete: {transformed_data}")
+    return transformed_data
 
-def load_to_s3(df):
-    # Upload the parquet to S3 path
+def load_weather_to_s3(**kwargs):
+
+    task_instance = kwargs['ti']
+    clean_data = task_instance.xcom_pull(task_ids='transform_task')
+
+    if not clean_data:
+        raise ValueError("No data received from transform_task")
+
     try:
+        # create pandas dataframe
+        df = pd.DataFrame([clean_data])
+
         s3_client = boto3.client(
             's3',
             aws_access_key_id=AWS_ACCESS_KEY_ID,
@@ -81,21 +92,7 @@ def load_to_s3(df):
         # Upload
         s3_client.put_object(Bucket=BUCKET_NAME, Key=S3_FILE_PATH, Body=out_buffer.getvalue())
         logging.info(f"Successfully loaded data to s3://{BUCKET_NAME}/{S3_FILE_PATH}")
+        
     except Exception as e:
         logging.error(f"Failed to upload to S3: {e}")
         raise
-
-
-def run_etl_pipeline():
-    # Wrapper function for Airflow PythonOperator
-    logging.info("Starting ETL Pipeline...")
-    raw_data = extract_weather_data()
-
-    validate_data(raw_data)
-    transformed_df = transform_data(raw_data)
-
-    load_to_s3(transformed_df)
-    logging.info("Pipeline finished successfully.")
-
-if __name__ == "__main__":
-    run_etl_pipeline()
