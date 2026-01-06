@@ -60,7 +60,7 @@ def transform_weather_data(**kwargs):
         "temperature_celsius": round(raw_data["main"]["temp"] - 273.15, 2),
         "humidity": raw_data["main"]["humidity"],
         "weather_condition": raw_data["weather"][0]["description"],
-        "ingestion_timestamp": datetime.now().isoformat() 
+        "ingestion_timestamp": datetime.now(timezone).isoformat() 
     }
     
     logging.info(f"Data transformation complete: {transformed_data}")
