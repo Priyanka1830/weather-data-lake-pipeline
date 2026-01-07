@@ -17,7 +17,7 @@ A fault-tolerant, containerized ETL pipeline that ingests real-time weather data
 
 ### 1. Airflow DAG (Extract $\rightarrow$ Transform $\rightarrow$ Load)
 *Structure of DAG & example of an execution.*
-![DAG Execution](screen_shots\DAG_image.png)
+![DAG Execution](screen_shots/DAG_image.png)
 
 ### 2. XCom being utilized
 *Data being passed from one node to another via XCom.*
