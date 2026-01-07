@@ -17,14 +17,20 @@ A fault-tolerant, containerized ETL pipeline that ingests real-time weather data
 
 ### 1. Airflow DAG (Extract $\rightarrow$ Transform $\rightarrow$ Load)
 *Structure of DAG & example of an execution.*
+![DAG Execution](screen_shots\DAG_image.png)
 
-
-### 2. AWS S3 Data Lake
-*Parquet files being written to the S3 path.*
-
+### 2. XCom being utilized
+*Data being passed from one node to another via XCom.*
+![Xcom from 1st node](screen_shots\XCom_1.png)
+![Xcom from 2nd node](screen_shots\XCom_2.png)
 
 ### 3. Execution Logs
 *Execution logs of the Data Quality check & validation logic.*
+![Validation logs](screen_shots\Validation_logs.png)
+
+### 4. AWS S3 Data Lake
+*Parquet files being written to the S3 path.*
+![S3 uploads](screen_shots\Data_loaded_to_S3.png)
 
 
 ---
